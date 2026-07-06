@@ -13,7 +13,7 @@ BOT_TOKEN = os.environ.get("BOT_TOKEN")
 CHANNEL_ID = os.environ.get("CHANNEL_ID")
 
 TIMEFRAME = "1h"
-CANDLES_LIMIT = 500  # نحتاج 200+ شمعة لـ EMA 200
+CANDLES_LIMIT = 500
 
 SYMBOLS = [
     "BTC/USDT"
@@ -27,9 +27,9 @@ RSI_OVERBOUGHT = 65
 RSI_OVERSOLD = 35
 EMA_FAST = 150
 EMA_SLOW = 200
-EMA_FAR_THRESHOLD = 1.5   # max distance between EMA150 and EMA200 (%)
-MAX_EMA200_DIST = 3.0      # max distance between price and EMA200 (%)
-COOLDOWN_BARS = 10          # 10 hours on 1H
+EMA_FAR_THRESHOLD = 1.5
+MAX_EMA200_DIST = 3.0
+COOLDOWN_BARS = 10
 
 # TP/SL
 SL_PCT = 1.5
@@ -144,9 +144,7 @@ def analyze_and_trade():
             df['ema150'] = df['close'].ewm(span=EMA_FAST, adjust=False).mean()
             df['ema200'] = df['close'].ewm(span=EMA_SLOW, adjust=False).mean()
 
-            # نحتاج على الأقل 200 شمعة بعد حساب EMA
-            # نبدأ الفحص من الشموع بعد الـ 200
-            start_idx = max(200, len(df) - 50)  # نفحص آخر 50 شمعة
+            start_idx = max(200, len(df) - 50)
 
             # ─── Current values ───
             curr_close = df['close'].iloc[-1]
@@ -182,14 +180,13 @@ def analyze_and_trade():
             # ─── RSI Cross Detection ───
             prev_rsi_up = prev_rsi > RSI_OVERBOUGHT
             curr_rsi_up = curr_rsi > RSI_OVERBOUGHT
-            buy_base = curr_rsi_up and not prev_rsi_up  # cross above 65
+            buy_base = curr_rsi_up and not prev_rsi_up
 
             prev_rsi_down = prev_rsi < RSI_OVERSOLD
             curr_rsi_down = curr_rsi < RSI_OVERSOLD
-            sell_base = curr_rsi_down and not prev_rsi_down  # cross below 35
+            sell_base = curr_rsi_down and not prev_rsi_down
 
             # ─── Cooldown Check (last 10 candles) ───
-            # نتأكد أنه لم يحدث إشارة شراء أو بيع في آخر 10 شموع
             recent = df.iloc[-(COOLDOWN_BARS + 1):-1]
 
             recent_rsi = recent['rsi']
@@ -208,12 +205,10 @@ def analyze_and_trade():
                 e200 = recent_ema200.iloc[idx]
 
                 if not pd.isna(r) and not pd.isna(r_prev):
-                    # Check buy cooldown
                     if (r > RSI_OVERBOUGHT and r_prev <= RSI_OVERBOUGHT
                             and c > e150 and e150 > e200):
                         cooldown_buy_hit = True
 
-                    # Check sell cooldown
                     if (r < RSI_OVERSOLD and r_prev >= RSI_OVERSOLD
                             and c < e150 and e150 < e200):
                         cooldown_sell_hit = True
