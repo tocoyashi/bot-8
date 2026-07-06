@@ -19,16 +19,16 @@ CANDLES_LIMIT = 672  # 7 days x 24 hours x 4 candles (15m)
 
 SYMBOLS = [
     "BTC/USDT", "ETH/USDT", "BNB/USDT", "SOL/USDT", "XRP/USDT",
-    "ADA/USDT", "DOGE/USDT", "AVAX/USDT", "DOT/USDT", "LINK/USDT",
+    "DOGE/USDT", "AVAX/USDT", "DOT/USDT", "LINK/USDT",
     "TRX/USDT", "POL/USDT", "SHIB/USDT", "LTC/USDT", "UNI/USDT",
-    "ATOM/USDT", "XLM/USDT", "NEAR/USDT", "APT/USDT", "SUI/USDT",
-    "ARB/USDT", "OP/USDT", "INJ/USDT", "TIA/USDT", "FIL/USDT",
-    "AAVE/USDT", "GRT/USDT", "PEPE/USDT", "QNT/USDT", "FET/USDT"
+    "ATOM/USDT", "XLM/USDT", "NEAR/USDT", "SUI/USDT",
+    "ARB/USDT", "OP/USDT", "INJ/USDT", "FIL/USDT",
+    "AAVE/USDT", "GRT/USDT", "QNT/USDT", "FET/USDT"
 ]
 
 LEVERAGE = 10
 SL_PCT = 0.05
-TP_PCTS = [0.0065, 0.017, 0.032, 0.058, 0.072]
+TP_PCTS = [0.0085, 0.017, 0.032, 0.058, 0.072]
 TP_WEIGHTS = [0.30, 0.25, 0.20, 0.15, 0.10]
 
 
@@ -69,7 +69,7 @@ def simulate_trade(entry_price, direction, future_highs, future_lows, future_clo
 
     for i in range(n_candles):
         high = future_highs.iloc[i]
-        low = future_low = future_lows.iloc[i]
+        low = future_lows.iloc[i]
 
         if direction == "LONG":
             # Check SL first
@@ -166,6 +166,14 @@ def run_backtest():
                 if buy_signal and curr_rsi >= 75:
                     continue
                 if sell_signal and curr_rsi <= 25:
+                    continue
+
+                # MACD-only filter: يتطلب حجم > 1.5x و RSI بين 35-65
+                macd_only_buy = macd_buy and not ema_buy
+                macd_only_sell = macd_sell and not ema_sell
+                if macd_only_buy and (vol_ratio < 1.5 or not (35 <= curr_rsi <= 65)):
+                    continue
+                if macd_only_sell and (vol_ratio < 1.5 or not (35 <= curr_rsi <= 65)):
                     continue
 
                 ema_diff_pct = ((curr_ema9 - curr_ema21) / curr_ema21) * 100
@@ -345,7 +353,6 @@ def format_report(report):
     r = report
     total = r['total_trades']
 
-    # Visual indicators
     wr_icon = "🟢" if r['win_rate'] >= 60 else ("🟡" if r['win_rate'] >= 45 else "🔴")
     profit_icon = "📈" if r['total_profit'] > 0 else "📉"
     profit_sign = "+" if r['total_profit'] > 0 else ""
@@ -359,7 +366,7 @@ def format_report(report):
         f"\n"
         f"  📅  Period:  <code>{r['start_date']}</code>  →  <code>{r['end_date']}</code>\n"
         f"  ⏱  Timeframe:  <code>15m</code>   |   ⚡  Leverage:  <code>{LEVERAGE}x</code>\n"
-        f"  🪙  Coins Scanned:  <code>30</code>   |   📊  Candles:  <code>{CANDLES_LIMIT}</code>\n"
+        f"  🪙  Coins Scanned:  <code>26</code>   |   📊  Candles:  <code>{CANDLES_LIMIT}</code>\n"
         f"\n"
         f"  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
         f"  📋  <b>OVERALL PERFORMANCE</b>\n"
@@ -455,24 +462,6 @@ def format_report(report):
     for rank, (coin, row) in enumerate(top5.iterrows()):
         text += (
             f"  {medals[rank]}  <code>{coin:<12}</code>  "
-            f"Trades: <code>{int(row['trades']):>3}</code>  "
-            f"WR: <code>{row['win_rate']:>5.1f}%</code>  "
-            f"PnL: <code>{row['total_pnl']:>+8.2f}%</code>\n"
-        )
-
-    text += "\n"
-
-    # Bottom 5 coins
-    bottom5 = r['coin_perf'].tail(5).iloc[::-1]
-    text += (
-        f"  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-        f"  💀  <b>WORST 5 COINS</b>\n"
-        f"  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-        f"\n"
-    )
-    for rank, (coin, row) in enumerate(bottom5.iterrows()):
-        text += (
-            f"  {rank + 1:>2}.  <code>{coin:<12}</code>  "
             f"Trades: <code>{int(row['trades']):>3}</code>  "
             f"WR: <code>{row['win_rate']:>5.1f}%</code>  "
             f"PnL: <code>{row['total_pnl']:>+8.2f}%</code>\n"
