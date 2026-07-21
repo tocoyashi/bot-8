@@ -1,3 +1,14 @@
+"""
+Scalp Bot (RSI + EMA 150/200 Trend)
+====================================
+- BTC/USDT on 1H timeframe
+- RSI cross + EMA trend + price filters
+- TP1: 1% (50%), TP2: 3% (25%), TP3: 4% (25%)
+- SL: 1.5%, moves to breakeven after TP1
+- Cooldown: 10 bars (10 hours)
+- Telegram signal formatting
+"""
+
 import os
 import ssl
 ssl._create_default_https_context = ssl._create_unverified_context
@@ -7,10 +18,11 @@ import pandas as pd
 import ta
 import requests
 import time
+import numpy as np
 from datetime import datetime
 
-BOT_TOKEN = os.environ.get("BOT_TOKEN")
-CHANNEL_ID = os.environ.get("CHANNEL_ID")
+BOT_TOKEN = os.environ.get("BOT_TOKEN", "")
+CHANNEL_ID = os.environ.get("CHANNEL_ID", "")
 
 TIMEFRAME = "1h"
 CANDLES_LIMIT = 500
@@ -19,7 +31,7 @@ SYMBOLS = [
     "BTC/USDT"
 ]
 
-DEFAULT_IMAGE = "https://t.me/PYTHON_SIGNALS_BS/38"
+# No image — text-only signals
 
 # Scalp System Parameters
 RSI_LENGTH = 14
@@ -36,6 +48,9 @@ SL_PCT = 1.5
 TP1_PCT = 1.0
 TP2_PCT = 3.0
 TP3_PCT = 4.0
+TP1_ALLOC = 0.50
+TP2_ALLOC = 0.25
+TP3_ALLOC = 0.25
 
 
 def get_decimals(price):
@@ -50,16 +65,14 @@ def get_decimals(price):
 
 
 def send_signal(coin_name, direction, entry, tp1, tp2, tp3, sl,
-                rsi, ema150, ema200, ema_distance, price_ema200_dist, image_url):
-    """Send scalping signal to Telegram with beautiful format."""
+                rsi, ema150, ema200, ema_distance, price_ema200_dist):
+    """Send scalping signal to Telegram with the requested format."""
 
     if direction == "LONG":
-        header_icon = "🟢"
         trend_icon = "📈"
         dir_text = "LONG  ▲"
         trend_label = "BULLISH (EMA150 > EMA200)"
     else:
-        header_icon = "🔴"
         trend_icon = "📉"
         dir_text = "SHORT  ▼"
         trend_label = "BEARISH (EMA150 < EMA200)"
@@ -67,44 +80,37 @@ def send_signal(coin_name, direction, entry, tp1, tp2, tp3, sl,
     now = datetime.now().strftime('%Y-%m-%d  %H:%M')
 
     text = (
-        f"╔═══════════════════════════════════════╗\n"
-        f"║  {header_icon}  SCALP SIGNALS  {header_icon}  ║\n"
-        f"╠═══════════════════════════════════════╣\n"
-        f"\n"
-        f"  {trend_icon}  <b>{coin_name}</b>  —  <code>{dir_text}</code>\n"
+        f"{trend_icon}  <b>{coin_name}</b>  —  <code>{dir_text}</code>\n"
         f"\n"
         f"  ⏰  {now}\n"
         f"  🧠  <b>Strategy:</b>  <code>Scalp (RSI + EMA Trend)</code>\n"
         f"  📊  <b>Trend:</b>  <i>{trend_label}</i>\n"
         f"\n"
-        f"  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        f"  ━━━━━━━━━━━━━━━━━━━━\n"
         f"  🎯  <b>Entry:</b>  <code>{entry}</code>\n"
         f"\n"
-        f"  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-        f"  🟩  <b>TP1 (50%):</b>  <code>{tp1}</code>  <i>(+{TP1_PCT}%)</i>\n"
-        f"  🟦  <b>TP2 (25%):</b>  <code>{tp2}</code>  <i>(+{TP2_PCT}%)</i>\n"
-        f"  🟪  <b>TP3 (25%):</b>  <code>{tp3}</code>  <i>(+{TP3_PCT}%)</i>\n"
+        f"  ━━━━━━━━━━━━━━━━━━━━\n"
+        f"  🟦  <b>TP1 ({int(TP1_ALLOC*100)}%):</b>  <code>{tp1}</code>  <i>(+{TP1_PCT}%)</i>\n"
+        f"  🟨  <b>TP2 ({int(TP2_ALLOC*100)}%):</b>  <code>{tp2}</code>  <i>(+{TP2_PCT}%)</i>\n"
+        f"  🟩  <b>TP3 ({int(TP3_ALLOC*100)}%):</b>  <code>{tp3}</code>  <i>(+{TP3_PCT}%)</i>\n"
         f"\n"
-        f"  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-        f"  🛑  <b>Stop Loss:</b>  <code>{sl}</code>  <i>(-{SL_PCT}% → BE after TP1)</i>\n"
+        f"  ━━━━━━━━━━━━━━━━━━━━\n"
+        f"  🟥  <b>Stop Loss:</b>  <code>{sl}</code>  <i>(-{SL_PCT}% → BE after TP1)</i>\n"
         f"\n"
-        f"  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        f"  ━━━━━━━━━━━━━━━━━━━━\n"
         f"  📊  <b>Indicators:</b>\n"
         f"  ┆  RSI (14):  <code>{rsi:.1f}</code>\n"
         f"  ┆  EMA 150/200 Dist:  <code>{ema_distance:.2f}%</code>\n"
         f"  ┆  Price/EMA200 Dist:  <code>{price_ema200_dist:.2f}%</code>\n"
         f"\n"
-        f"╚═══════════════════════════════════════╝\n"
-        f"\n"
         f"  <i>⚠️ Trade responsibly — Not financial advice</i>\n"
         f"  <i>⏱ Timeframe: 1H  |  🤖 Dr Python Scalp Bot</i>"
     )
 
-    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendAnimation"
+    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
     payload = {
         "chat_id": CHANNEL_ID,
-        "animation": image_url,
-        "caption": text,
+        "text": text,
         "parse_mode": "HTML"
     }
     try:
@@ -230,7 +236,7 @@ def analyze_and_trade():
                             symbol, "LONG", str(entry),
                             str(tp1), str(tp2), str(tp3), str(sl),
                             curr_rsi, curr_ema150, curr_ema200,
-                            ema_distance, price_ema200_dist, DEFAULT_IMAGE
+                            ema_distance, price_ema200_dist
                         )
                         time.sleep(2)
                     else:
@@ -254,7 +260,7 @@ def analyze_and_trade():
                             symbol, "SHORT", str(entry),
                             str(tp1), str(tp2), str(tp3), str(sl),
                             curr_rsi, curr_ema150, curr_ema200,
-                            ema_distance, price_ema200_dist, DEFAULT_IMAGE
+                            ema_distance, price_ema200_dist
                         )
                         time.sleep(2)
                     else:
