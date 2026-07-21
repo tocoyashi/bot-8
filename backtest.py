@@ -30,7 +30,7 @@ MAX_EMA200_DIST = 3.0
 COOLDOWN_BARS = 10
 
 # TP/SL
-SL_PCT = 1.5
+SL_PCT = 
 TP1_PCT = 1.0
 TP2_PCT = 3.0
 TP3_PCT = 4.0
@@ -507,8 +507,8 @@ def send_telegram_report(total_trades, wins, losses, win_rate,
         f"\n"
         f"╚══════════════════════════════════════╝\n"
         f"\n"
-        f"  <i>Strategy: RSI(14) + EMA 150/200 | 1H | SL 1.5%</i>\n"
-        f"  <i>TP1: 1.0% (50%) | TP2: 3.0% (25%) | TP3: 4.0% (25%) | SL: 1.5% | SL→BE after TP1</i>"
+        f"  <i>Strategy: RSI(14) + EMA 150/200 | 1H | SL %</i>\n"
+        f"  <i>TP1: 1.0% (50%) | TP2: 3.0% (25%) | TP3: 4.0% (25%) | SL: 2.5% | SL→BE after TP1</i>"
     )
 
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
