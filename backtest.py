@@ -1,6 +1,6 @@
 """
 =================================================================
-  Scalp Bot Backtest — 100% Compatible with scalp_bot.py
+  Bulls Signals Bot Backtest 1 year— 100% Compatible with scalp_bot
 =================================================================
   BTC/USDT | 1H | RSI(14) OB=65 OS=35 | EMA 150/200
   SL: 2.5% | TP1: 1%(50%) | TP2: 3%(25%) | TP3: 4%(25%)
@@ -8,10 +8,10 @@
   Sends results to Telegram channel after completion
 
   Usage:
-    python backtest_scalp.py          <- 1 year (365 days)
-    python backtest_scalp.py 6        <- 6 months
-    python backtest_scalp.py 3        <- 3 months
-    python backtest_scalp.py 12       <- 1 year
+      backtest_scalp.py          <- 1 year (365 days)
+      backtest_scalp.py 6        <- 6 months
+      backtest_scalp.py 3        <- 3 months
+      backtest_scalp.py 12       <- 1 year
 =================================================================
 """
 
